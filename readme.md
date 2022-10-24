@@ -11,5 +11,7 @@ google drive: ...
 4. python3 -m pip install -r requirements.txt
 
 
-
+** Remote data storage **
+https://drive.google.com/drive/u/0/folders/1UO3pJDuddftcamptmewF192sCMiPtERB
+dvc pull 
 
