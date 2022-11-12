@@ -47,7 +47,7 @@ if __name__ == "__main__":
 read_data_node = node(func=read_data, inputs="file path", outputs="data")
 dataset_split_node = node(func=dataset_split, inputs="data frame", outputs="test and train data")
 train_model_node = node(func=train_model, inputs="model and data", outputs="predictions")
-score_model_node = node(func score_model, inputs="model and predictions", outputs="model score")
+score_model_node = node(func=score_model, inputs="model and predictions", outputs="model score")
 
 #assemble nodes into pipeline
 modules_pipeline = pipeline([read_data_node, dataset_split_node, train_model_node, score_model_node])
