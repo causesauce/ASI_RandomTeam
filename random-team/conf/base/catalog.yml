@@ -9,4 +9,8 @@ car_price:
   filepath: data/01_raw/CarPrice.csv
   layer: raw
 
-
+regressor:
+  type: pickle.PickleDataSet
+  filepath: data/06_models/regressor.pkl
+  versioned: true
+  layer: models

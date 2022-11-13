@@ -1,0 +1,19 @@
+model_options:
+  test_size: 0.2
+  random_state: 3
+  features:
+    - symboling
+    - wheelbase
+    - carlength 
+    - carwidth
+    - carheight 
+    - curbweight 
+    - enginesize
+    - boreratio 
+    - stroke 
+    - compressionratio
+    - horsepower 
+    - peakrpm 
+    - citympg
+    - highwaympg
+    - price
