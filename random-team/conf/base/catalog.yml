@@ -11,6 +11,6 @@ car_price:
 
 regressor:
   type: pickle.PickleDataSet
-  filepath: data/06_models/regressor.pkl
+  filepath: data/06_models/regressor.pickle
   versioned: true
   layer: models

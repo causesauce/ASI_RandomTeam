@@ -1,0 +1,4 @@
+outs:
+- md5: 977fc9d345a1e99b836dbe569ae140e7
+  size: 20885
+  path: regressor.pickle
