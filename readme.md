@@ -9,6 +9,8 @@ google drive: ...
 2. python3 -m venv env
 3. source env/bin/activate
 4. python3 -m pip install -r requirements.txt
+5. cd random-team
+6. kedro run
 
 
 ** Remote data storage **
