@@ -1,0 +1,88 @@
+---
+  - name: Configure environment
+    hosts: all
+    become: true
+    tasks:
+      - name: Install git
+        ansible.builtin.package:
+          name: git
+          state: present
+
+      - name: Install aptitude
+        apt:
+          name: aptitude
+          state: latest
+          update_cache: true
+      
+      - name: Install required system packages
+        apt:
+          pkg:
+            - apt-transport-https
+            - ca-certificates
+            - curl
+            - software-properties-common
+            - python3-pip
+            - virtualenv
+            - python3-setuptools
+          state: latest
+          update_cache: true
+
+      - name: Add Docker GPG apt Key
+        apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+
+      - name: Add Docker Repository
+        apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu focal stable
+          state: present
+
+      - name: Update apt and install docker-ce
+        apt:
+          name: docker-ce
+          state: latest
+          update_cache: true
+
+      - name: Install Docker Module for Python
+        pip:
+          name: docker
+
+  - name: Creates file system
+    hosts: all
+    gather_facts: no
+    tasks:
+      - name: Create project folder
+        ansible.builtin.file:
+          path: "{{certs_dir}}"
+          mode: u=rwx,g=rx,o=rx
+          state: directory
+      - name: Copy docker file
+        ansible.builtin.copy:
+          src: ./Dockerfile
+          dest: "{{certs_dir}}/Dockerfile"
+          mode: u=r,g=rx,o=rx 
+      - name: Copy requirements file
+        ansible.builtin.copy:
+          src: ./requirements.txt
+          dest: "{{certs_dir}}/requirements.txt"
+      - name: Clone a repo with separate git directory
+        ansible.builtin.git:
+          repo: https://github.com/Posampas/ASI_RandomTeam.git
+          dest: "{{certs_dir}}/random_team/"
+
+  - name: Build docker image
+    hosts: all
+    gather_facts: no
+    tasks:
+      - name: build container image
+        shell: docker build -t test:latest .
+        args:
+          chdir: "{{certs_dir}}/"
+      - name: run container
+        environment:
+          WANDB_API: "{{ WANDB_API_KEY }}"
+        shell: docker run -e WANDB_API_KEY=$WANDB_API test:latest
+        register: id
+      - debug: 
+          var: id.stdout_lines
+          

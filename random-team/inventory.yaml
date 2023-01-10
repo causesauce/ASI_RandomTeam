@@ -1,0 +1,13 @@
+---
+all:
+  hosts:
+    ml-proj-h-1:
+      ansible_host: 44.210.131.4
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ~/.ssh/nvirginiakeys.pem
+
+  vars:
+    ansible_ssh_common_args: -o StrictHostKeyChecking=no
+    ansible_python_interpreter: /usr/bin/python3.10
+    certs_dir: project
+    WANDB_API_KEY: 2ea9d085dbff3ec6f9407bdaba0fbe775f4b451b
