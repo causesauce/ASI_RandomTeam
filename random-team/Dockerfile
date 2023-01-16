@@ -26,5 +26,5 @@ COPY --chown=${KEDRO_UID}:${KEDRO_GID} . .
 
 EXPOSE 8888
 
-WORKDIR /home/kedro_docker/random_team/random-team/
+WORKDIR /home/kedro_docker/random-team/
 CMD ["kedro", "run"]

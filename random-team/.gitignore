@@ -156,3 +156,11 @@ wandb/
 
 # mypy
 .mypy_cache/
+
+
+# AWS
+terraform.tfvars
+htpasswd
+domain.cert
+domain.crt
+userdata.tpl
