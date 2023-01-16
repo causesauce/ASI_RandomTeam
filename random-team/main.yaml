@@ -3,86 +3,191 @@
     hosts: all
     become: true
     tasks:
-      - name: Install git
-        ansible.builtin.package:
-          name: git
-          state: present
-
-      - name: Install aptitude
-        apt:
-          name: aptitude
-          state: latest
-          update_cache: true
-      
-      - name: Install required system packages
-        apt:
-          pkg:
-            - apt-transport-https
-            - ca-certificates
-            - curl
-            - software-properties-common
-            - python3-pip
-            - virtualenv
-            - python3-setuptools
-          state: latest
-          update_cache: true
-
-      - name: Add Docker GPG apt Key
-        apt_key:
-          url: https://download.docker.com/linux/ubuntu/gpg
-          state: present
-
-      - name: Add Docker Repository
-        apt_repository:
-          repo: deb https://download.docker.com/linux/ubuntu focal stable
-          state: present
-
-      - name: Update apt and install docker-ce
-        apt:
-          name: docker-ce
-          state: latest
-          update_cache: true
-
-      - name: Install Docker Module for Python
-        pip:
-          name: docker
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        update_cache: true
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        update_cache: true
+    - name: Install Docker Module for Python
+      pip:
+        name:
+        - 'docker'
+        - 'docker-compose'
+    - name: Copy ssh keys
+      ansible.builtin.copy:
+        src: ~/.ssh/aws_frankfurt.pem
+        dest: "/root/.ssh/"
+        mode: u+rw,g-rwx,o-rwx
 
   - name: Creates file system
-    hosts: all
-    gather_facts: no
+    hosts: push_mn
+    gather_facts: false
+    become: true
     tasks:
       - name: Create project folder
         ansible.builtin.file:
-          path: "{{certs_dir}}"
+          path: "{{ project_dir }}"
           mode: u=rwx,g=rx,o=rx
           state: directory
+
+      - name: Create folder for certificates
+        ansible.builtin.file:
+          path: "{{ project_dir }}/{{ cert_dir }}"
+          mode: u=rwx,g=rx,o=rx
+          state: directory
+      - name: Create docker subfolder
+        ansible.builtin.file:
+          path: "{{ project_dir }}/{{ docker_sub_dir }}"
+          mode: u=rwx,g=rx,o=rx
+          state: directory
+
+      - name: Create folder for auth
+        ansible.builtin.file:
+          path: "{{ project_dir }}/{{ auth_dir }}"
+          mode: u=rwx,g=rx,o=rx
+          state: directory
+
+      - name: Copy folders for creating registry
+        synchronize:
+          src: "{{ item }}"
+          dest: "{{ project_dir }}"
+          recursive: true
+          delete: true
+        loop:
+          - "../registry-certs"
+          - "../registry-proxy"
+      - name: Copy compose.yaml
+        ansible.builtin.copy:
+          src: ../compose.yaml
+          dest: "{{ project_dir }}/compose.yaml"
+          mode: u=r,g=rx,o=rx
+      - name: Copy .env
+        ansible.builtin.copy:
+          src: ../.env
+          dest: "{{ project_dir }}/.env"
+          mode: u=r,g=rx,o=rx
       - name: Copy docker file
         ansible.builtin.copy:
           src: ./Dockerfile
-          dest: "{{certs_dir}}/Dockerfile"
-          mode: u=r,g=rx,o=rx 
+          dest: "{{ project_dir }}/{{ docker_sub_dir }}/Dockerfile"
+          mode: u=r,g=rx,o=rx
       - name: Copy requirements file
         ansible.builtin.copy:
           src: ./requirements.txt
-          dest: "{{certs_dir}}/requirements.txt"
-      - name: Clone a repo with separate git directory
-        ansible.builtin.git:
-          repo: https://github.com/Posampas/ASI_RandomTeam.git
-          dest: "{{certs_dir}}/random_team/"
-
-  - name: Build docker image
-    hosts: all
-    gather_facts: no
-    tasks:
-      - name: build container image
-        shell: docker build -t test:latest .
+          dest: "{{ project_dir }}/{{ docker_sub_dir }}/requirements.txt"
+          mode: u=r,g=rx,o=rx
+      - name: Copy project folders 
+        synchronize:
+          src: "../random-team"
+          dest: "{{ project_dir }}/{{ docker_sub_dir }}/"
+          recursive: true
+          delete: true
+      - name: Create docker network
+        docker_network:
+          name: ci-cd
+      - name: run docker-compose
+        ansible.builtin.shell: |
+          sed -i "s~source\: certs~source\: $(pwd)\/certs~" compose.yaml
+          sed -i "s~source\: auth~source\: $(pwd)\/auth~" compose.yaml
+          docker-compose up -d registry-certs registry-proxy registry
+          cd certs
+          echo -e "\n\nWarsa\n\nai\nregistry-proxy\nmy@email.net\n" | sudo openssl req -new -x509 -text -key domain.key -out domain.cert
+          cd -
+          mkdir -p /etc/docker/certs.d/{{ registry_url }}
+          cp -f certs/* /etc/docker/certs.d/{{ registry_url }}/
         args:
-          chdir: "{{certs_dir}}/"
+          chdir: "{{ project_dir }}"
+
+      - name: Create DNS record
+        shell: "echo '{{ansible_default_ipv4.address}} registry-proxy' >> /etc/hosts"
+        changed_when: false
+      - name: Generate htpasswd
+        changed_when: false
+        shell: |
+          [ -f htpasswd ] || \
+          docker run --rm --entrypoint htpasswd httpd:2 \
+          -Bbn {{ user_name }} {{ pass }} > htpasswd
+        args:
+          chdir: "{{ project_dir }}/{{ auth_dir }}/"
+          executable: /bin/bash
+
+      - name: log in into docker
+        community.docker.docker_login:
+          registry_url: "{{ registry_url }}"
+          username: "{{ user_name }}"
+          password: "{{ pass }}"
+      - name: build container image
+        shell: docker build -t registry-proxy:443/test:latest .
+        args:
+          chdir: "{{ project_dir }}/{{ docker_sub_dir }}"
+      - name: push docker image
+        shell: docker push registry-proxy:443/test:latest
+        changed_when: false
+      # - name: run container
+      #   changed_when: false
+      #   environment:
+      #     WANDB_API: "{{ WANDB_API_KEY }}"
+      #   shell: docker run -e WANDB_API_KEY=$WANDB_API registry-proxy:443/test:latest
+      #   register: id
+      # - debug:
+      #     var: id.stdout_lines
+  
+  - name: Pull an image
+    hosts: pull_mn
+    become: true
+    tasks:
+      # - name: run docker-compose
+      #   ansible.builtin.shell: |
+      #     mkdir -p /etc/docker/certs.d/{{ registry_url }}
+      - name: copy Registry serts to the localhost
+        synchronize:
+          src: "/etc/docker/certs.d/{{ registry_url }}"
+          dest: "/etc/docker/certs.d/"
+          recursive: true
+          delete: true
+        delegate_to: ml-proj-h-1
+      - name: Create DNS record
+        shell: "grep '{{ hostvars['ml-proj-h-1'].ansible_host }} registry-proxy' /etc/hosts || echo '{{ hostvars['ml-proj-h-1'].ansible_host }} registry-proxy' >> /etc/hosts"
+        changed_when: false
+      - name: log in into docker
+        community.docker.docker_login:
+          registry_url: "{{ registry_url }}"
+          username: "{{ user_name }}"
+          password: "{{ pass }}"
       - name: run container
+        community.docker.docker_image:
+            name: registry-proxy:443/test:latest
+            source: pull
+            state: present
+
+  - name: Run kedro
+    hosts: all
+    become: true
+    gather_facts: false
+    tasks:
+      - name: run container
+        changed_when: false
         environment:
           WANDB_API: "{{ WANDB_API_KEY }}"
-        shell: docker run -e WANDB_API_KEY=$WANDB_API test:latest
+        shell: docker run -e WANDB_API_KEY=$WANDB_API registry-proxy:443/test:latest
         register: id
-      - debug: 
+      - debug:
           var: id.stdout_lines
-          

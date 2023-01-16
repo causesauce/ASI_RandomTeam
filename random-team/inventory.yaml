@@ -1,13 +1,32 @@
 ---
 all:
-  hosts:
-    ml-proj-h-1:
-      ansible_host: 44.210.131.4
-      ansible_user: ubuntu
-      ansible_ssh_private_key_file: ~/.ssh/nvirginiakeys.pem
-
   vars:
     ansible_ssh_common_args: -o StrictHostKeyChecking=no
-    ansible_python_interpreter: /usr/bin/python3.10
-    certs_dir: project
+    ansible_python_interpreter: /usr/bin/python3
+    project_dir: project
+    cert_dir:    certs
+    auth_dir:    auth
     WANDB_API_KEY: 2ea9d085dbff3ec6f9407bdaba0fbe775f4b451b
+    user_name:   ansible 
+    pass:        pass
+    docker_sub_dir: docker_sub_dir
+    registry_url: registry-proxy:443
+
+  children:
+    push_mn: 
+      hosts:
+        ml-proj-h-1:
+    pull_mn:
+      hosts:
+        ml-proj-h-2:
+
+  hosts:
+    ml-proj-h-1:
+      ansible_host:  3.125.6.176
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ~/.ssh/aws_frankfurt.pem
+
+    ml-proj-h-2:
+      ansible_host:  3.123.19.44
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ~/.ssh/aws_frankfurt.pem
