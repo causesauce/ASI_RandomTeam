@@ -16,7 +16,6 @@ model_options:
     - peakrpm 
     - citympg
     - highwaympg
-    - price
 
 model_parameters:
   max_depth : 7
