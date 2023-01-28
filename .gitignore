@@ -3,3 +3,4 @@ userdata.tpl
 .terraform 
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+env
