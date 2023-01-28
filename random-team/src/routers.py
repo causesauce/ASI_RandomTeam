@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from models import Input
-from services import run_pipeline
+from .models import Input
+from .services import run_pipeline
 
 predictions_router = APIRouter()
 

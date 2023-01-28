@@ -1,4 +1,4 @@
-from random_team.pipelines.serve_model.pipeline import create_pipeline
+from .random_team.pipelines.serve_model.pipeline import create_pipeline
 from kedro.runner import SequentialRunner
 from kedro.io import DataCatalog
 import pandas as pd
